@@ -273,7 +273,7 @@ export default class Device extends EventEmitter {
     return sensors;
   }
 
-  _processMeasurements(response) {
+  _processMeasurements(response: DataView) {
     let sensors = [];
     let isFloat = true;
     let valueCount = 0;
@@ -480,41 +480,33 @@ export default class Device extends EventEmitter {
     }
   }
 
-  _getDefaultSensorsMask() {
-    return this._sendCommand(commands.GET_DEFAULT_SENSORS_MASK).then(
-      (response) => {
-        this.defaultSensorsMask = response.getUint32(0, true);
-        log(`Default Sensors:`);
-        dir(this);
-      },
-    );
+  async _getDefaultSensorsMask() {
+    const response = await this._sendCommand(commands.GET_DEFAULT_SENSORS_MASK);
+    this.defaultSensorsMask = response.getUint32(0, true);
+    log(`Default Sensors:`);
+    dir(this);
   }
 
-  _getDeviceInfo() {
-    return this._sendCommand(commands.GET_INFO).then((response) => {
-      const decoder = new TextDecoder("utf-8");
-
-      // OrderCode offset = 6 (header+cmd+counter)
-      // Ordercode length = 16
-      this.orderCode = decoder.decode(
-        new Uint8Array(response.buffer, 6, 16).filter(nonZero),
-      );
-
-      // SerialNumber offset = 22 (OrderCode offset + Ordercode length)
-      // SerialNumber length = 16
-      this.serialNumber = decoder.decode(
-        new Uint8Array(response.buffer, 22, 16).filter(nonZero),
-      );
-
-      // DeviceName offset = 38 (SerialNumber offset + SerialNumber length)
-      // DeviceName length = 32
-      this.name = decoder.decode(
-        new Uint8Array(response.buffer, 38, 32).filter(nonZero),
-      );
-
-      log(`Device Info:`);
-      dir(this);
-    });
+  async _getDeviceInfo() {
+    const response = await this._sendCommand(commands.GET_INFO);
+    const decoder = new TextDecoder("utf-8");
+    // OrderCode offset = 6 (header+cmd+counter)
+    // Ordercode length = 16
+    this.orderCode = decoder.decode(
+      new Uint8Array(response.buffer, 6, 16).filter(nonZero),
+    );
+    // SerialNumber offset = 22 (OrderCode offset + Ordercode length)
+    // SerialNumber length = 16
+    this.serialNumber = decoder.decode(
+      new Uint8Array(response.buffer, 22, 16).filter(nonZero),
+    );
+    // DeviceName offset = 38 (SerialNumber offset + SerialNumber length)
+    // DeviceName length = 32
+    this.name = decoder.decode(
+      new Uint8Array(response.buffer, 38, 32).filter(nonZero),
+    );
+    log(`Device Info:`);
+    dir(this);
   }
 
   async _getSensorInfo(i) {
@@ -641,32 +633,27 @@ export default class Device extends EventEmitter {
     return channelMask;
   }
 
-  _startMeasurements() {
-    return this._setMeasurementPeriod(this.measurementPeriod * 1000).then(
-      () => {
-        const channelMask = this._getEnabledChannelMask();
-        log(`ChannelMask: ${channelMask}`);
-        const command = new Uint8Array(commands.START_MEASUREMENTS);
-        command[3] = (channelMask >> 0) & 0xff;
-        command[4] = (channelMask >> 8) & 0xff;
-        command[5] = (channelMask >> 16) & 0xff;
-        command[6] = (channelMask >> 24) & 0xff;
-        return this._sendCommand(command).then((response) => {
-          if (response.getUint8(0) === 0) {
-            this.collecting = true;
-            this.emit("measurements-started");
-          }
-        });
-      },
-    );
+  async _startMeasurements() {
+    await this._setMeasurementPeriod(this.measurementPeriod * 1000);
+    const channelMask = this._getEnabledChannelMask();
+    log(`ChannelMask: ${channelMask}`);
+    const command = new Uint8Array(commands.START_MEASUREMENTS);
+    command[3] = (channelMask >> 0) & 0xff;
+    command[4] = (channelMask >> 8) & 0xff;
+    command[5] = (channelMask >> 16) & 0xff;
+    command[6] = (channelMask >> 24) & 0xff;
+    const response = await this._sendCommand(command);
+    if (response.getUint8(0) === 0) {
+      this.collecting = true;
+      this.emit("measurements-started");
+    }
   }
 
-  _stopMeasurements() {
-    return this._sendCommand(commands.STOP_MEASUREMENTS).then((response) => {
-      if (response.getUint8(0) === 0) {
-        this.collecting = false;
-        this.emit("measurements-stopped");
-      }
-    });
+  async _stopMeasurements() {
+    const response = await this._sendCommand(commands.STOP_MEASUREMENTS);
+    if (response.getUint8(0) === 0) {
+      this.collecting = false;
+      this.emit("measurements-stopped");
+    }
   }
 }
