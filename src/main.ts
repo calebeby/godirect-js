@@ -1,5 +1,6 @@
 import "./style.css";
 import goDirect from "./godirect/godirect";
+import { bufferToHex } from "./godirect/utils";
 
 if (!navigator.hid) {
   document.body.innerHTML = `<h1>No webusb support; try Chrome/Edge</h1>`;
@@ -22,4 +23,20 @@ document.querySelector("button")?.addEventListener("click", async () => {
     open: true,
     startMeasurements: false,
   });
+
+  console.log(
+    "RR",
+    bufferToHex(
+      (
+        await d.sendCommand(
+          // new Uint8Array([0x27, 0x66, 0x00, 0x00, 0x00, 0x00, 0x10]),
+          // new Uint8Array([0x27, 0x66, 0x04, 0x00, 0x00, 0x00, 0x04]),
+          // new Uint8Array([0x27, 0x66, 0x10, 0x00, 0x00, 0x00, 0xf7]),
+          // new Uint8Array([0x5e]),
+          // new Uint8Array([ 0x60, 0x00, 0x00, 0x40, 0x1f, 0x00, 0x00, 0x00, 0x00, ]),
+          new Uint8Array([0x1c, 0x01]),
+        )
+      ).buffer.slice(6),
+    ),
+  );
 });

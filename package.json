@@ -1,14 +1,30 @@
 {
-  "name": "webusb-test",
+  "name": "@calebeby/godirect",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "rm -rf dist && tsup src/godirect/godirect.ts --format esm,cjs --dts",
+    "type:watch": "tsc --watch",
+    "preview": "vite preview",
+    "knip": "knip"
   },
+  "exports": {
+    "require":{
+      "types":"./dist/godirect.d.cts",
+      "default": "./dist/godirect.cjs"
+    },
+    "default":{
+      "types":"./dist/godirect.d.ts",
+      "default": "./dist/godirect.js"
+    }
+  },
+  "types": "./dist/godirect.d.ts",
   "devDependencies": {
+    "@types/node": "^24.0.10",
+    "knip": "^5.61.3",
+    "tsup": "^8.5.0",
     "typescript": "^5.2.2",
     "vite": "^5.3.4"
   },

@@ -1,7 +1,26 @@
-import { EventEmitter } from './utils.js';
+import { EventEmitter } from "./utils.js";
 
 export class MeasurementInfo {
-  constructor(args = {}) {
+  type: number;
+  mode: number;
+  minValue: number;
+  maxValue: number;
+  uncertainty: number;
+  minPeriod: number;
+  maxPeriod: number;
+  typicalPeriod: number;
+  granularity: number;
+  constructor(args: {
+    type: number;
+    mode: number;
+    minValue: number;
+    maxValue: number;
+    uncertainty: number;
+    minPeriod: number;
+    maxPeriod: number;
+    typicalPeriod: number;
+    granularity: number;
+  }) {
     this.type = args.type; // 0 = Real64 or 1 = Int32
     this.mode = args.mode; // 0 = Periodic, 1 = APeriodic
     this.minValue = args.minValue; // sensor units
@@ -15,7 +34,20 @@ export class MeasurementInfo {
 }
 
 export class SensorSpecs {
-  constructor(args = {}) {
+  number: number;
+  name: string;
+  unit: string;
+  mutalExclusionMask: number;
+  measurementInfo: MeasurementInfo;
+  id: number;
+  constructor(args: {
+    number: number;
+    name: string;
+    unit: string;
+    mutalExclusionMask: number;
+    measurementInfo: MeasurementInfo;
+    id: number;
+  }) {
     this.number = args.number;
     this.name = args.name;
     this.unit = args.unit;
@@ -25,8 +57,18 @@ export class SensorSpecs {
   }
 }
 
-export class Sensor extends EventEmitter {
-  constructor(specs) {
+export class Sensor extends EventEmitter<{
+  "state-changed": Sensor;
+  "value-changed": Sensor;
+}> {
+  value: number | null;
+  values: number[];
+  enabled: boolean;
+  number: any;
+  name: string;
+  unit: string;
+  specs: SensorSpecs;
+  constructor(specs: SensorSpecs) {
     super();
     this.number = specs.number;
     this.name = specs.name;
@@ -37,38 +79,26 @@ export class Sensor extends EventEmitter {
     this.value = null;
   }
 
-  /**
-  * Clear out the accumulated values
-  * @name clear
-  */
+  /** Clear out the accumulated values */
   clear() {
     this.value = null;
     this.values = [];
   }
 
-  /**
-  * Set the latest value and tell people about it.
-  * @name setValue
-  * @param {number} value
-  * @param {boolean} keep
-  */
-  setValue(value, keep) {
+  /** Set the latest value and tell people about it. */
+  setValue(value: number, keep: boolean) {
     this.value = value; // latest
     if (keep) {
       this.values.push(this.value);
     }
-    this.emit('value-changed', this);
+    this.emit("value-changed", this);
   }
 
-  /**
-  * Enable the sensor and tell people about it.
-  * @name setEnabled
-  * @param {boolean} enabled
-  */
-  setEnabled(enabled) {
+  /** Enable the sensor and tell people about it. */
+  setEnabled(enabled: boolean) {
     if (this.enabled !== enabled) {
       this.enabled = enabled;
-      this.emit('state-changed', this);
+      this.emit("state-changed", this);
     }
   }
 }
