@@ -21,22 +21,18 @@ document.querySelector("button")?.addEventListener("click", async () => {
 
   const d = await goDirect.createDevice(device, {
     open: true,
-    startMeasurements: false,
+    startMeasurements: true,
+  });
+
+  const enabledSensors = d.sensors.filter((s) => s.enabled);
+  enabledSensors.forEach((sensor) => {
+    sensor.on("value-changed", (sensor) => {
+      console.log(`${sensor.value} ${sensor.unit}`);
+    });
   });
 
   console.log(
     "RR",
-    bufferToHex(
-      (
-        await d.sendCommand(
-          // new Uint8Array([0x27, 0x66, 0x00, 0x00, 0x00, 0x00, 0x10]),
-          // new Uint8Array([0x27, 0x66, 0x04, 0x00, 0x00, 0x00, 0x04]),
-          // new Uint8Array([0x27, 0x66, 0x10, 0x00, 0x00, 0x00, 0xf7]),
-          // new Uint8Array([0x5e]),
-          // new Uint8Array([ 0x60, 0x00, 0x00, 0x40, 0x1f, 0x00, 0x00, 0x00, 0x00, ]),
-          new Uint8Array([0x1c, 0x01]),
-        )
-      ).buffer.slice(6),
-    ),
+    bufferToHex((await d.sendCommand(new Uint8Array([0x67]))).buffer),
   );
 });

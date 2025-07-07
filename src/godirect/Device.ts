@@ -259,9 +259,6 @@ export default class Device extends EventEmitter<{
         const sensor = this.getSensor(i);
         if (sensor) {
           sensors.push(sensor);
-          log(
-            `available: [${channelMask}] ${sensors[sensors.length - 1].number}`,
-          );
         }
       }
       mask <<= 1;
@@ -385,7 +382,6 @@ export default class Device extends EventEmitter<{
   }
 
   sendCommand(subCommand: Uint8Array) {
-    console.log("_send", bufferToHex(subCommand));
     const command = new Uint8Array(
       commands.HEADER.byteLength + subCommand.byteLength,
     );
@@ -510,79 +506,76 @@ export default class Device extends EventEmitter<{
 
     command[1] = i;
 
-    return this.sendCommand(command).then((response) => {
-      // We are getting false positives returned so making sure it has a sensorid sorts that out
-      // until I can get with Kevin to figure out what is going on.
-      const sensorId = response.getUint32(2, true);
-      console.log("Got sensor", { sensorId });
-      if (sensorId > 0) {
-        const decoder = new TextDecoder("utf-8");
+    const response = await this.sendCommand(command);
+    // We are getting false positives returned so making sure it has a sensorid sorts that out
+    // until I can get with Kevin to figure out what is going on.
+    const sensorId = response.getUint32(2, true);
+    if (sensorId <= 0) return;
 
-        const measurementInfo = new MeasurementInfo({
-          type: response.getUint8(6), // 0 = Real64 or 1 = Int32
-          mode: response.getUint8(7), // 0 = Periodic, 1 = Aperiodic
-          minValue: response.getFloat64(108, true),
-          maxValue: response.getFloat64(116, true),
-          uncertainty: response.getFloat64(100, true),
-          minPeriod: response.getUint32(124, true) / 1000,
-          maxPeriod:
-            ((response.getUint32(132, true) << 32) +
-              response.getUint32(128, true)) /
-            1000,
-          typicalPeriod: response.getUint32(136, true) / 1000,
-          granularity: response.getUint32(140, true) / 1000,
-        });
+    const decoder = new TextDecoder("utf-8");
 
-        const sensorSpecs = new SensorSpecs({
-          number: response.getUint8(0),
-          // sensorDescription offset = 14 (6 bytes (header+cmd+counter) + 8 bytes (other fields))
-          // sensorDescription length = 60
-          name: decoder.decode(
-            new Uint8Array(response.buffer, 14, 60).filter(nonZero),
-          ),
-          // sensorUnit offset = 74 (sensorDescription offset + sensorDescription length)
-          // sensorUnit length = 32
-          unit: decoder.decode(
-            new Uint8Array(response.buffer, 74, 32).filter(nonZero),
-          ),
-          mutalExclusionMask: response.getUint32(144, true),
-          measurementInfo,
-          id: sensorId,
-        });
+    const measurementInfo = new MeasurementInfo({
+      type: response.getUint8(6), // 0 = Real64 or 1 = Int32
+      mode: response.getUint8(7), // 0 = Periodic, 1 = Aperiodic
+      minValue: response.getFloat64(108, true),
+      maxValue: response.getFloat64(116, true),
+      uncertainty: response.getFloat64(100, true),
+      minPeriod: response.getUint32(124, true) / 1000,
+      maxPeriod:
+        ((response.getUint32(132, true) << 32) +
+          response.getUint32(128, true)) /
+        1000,
+      typicalPeriod: response.getUint32(136, true) / 1000,
+      granularity: response.getUint32(140, true) / 1000,
+    });
 
-        const sensor = new Sensor(sensorSpecs);
+    const sensorSpecs = new SensorSpecs({
+      number: response.getUint8(0),
+      // sensorDescription offset = 14 (6 bytes (header+cmd+counter) + 8 bytes (other fields))
+      // sensorDescription length = 60
+      name: decoder.decode(
+        new Uint8Array(response.buffer, 14, 60).filter(nonZero),
+      ),
+      // sensorUnit offset = 74 (sensorDescription offset + sensorDescription length)
+      // sensorUnit length = 32
+      unit: decoder.decode(
+        new Uint8Array(response.buffer, 74, 32).filter(nonZero),
+      ),
+      mutalExclusionMask: response.getUint32(144, true),
+      measurementInfo,
+      id: sensorId,
+    });
 
-        log(`Get Sensor Info Returned`);
-        dir(sensor);
+    const sensor = new Sensor(sensorSpecs);
 
-        this.sensors.push(sensor);
-        sensor.on("state-changed", () => {
-          log(`Sensor Restart: ${sensor.number}`);
+    log(`Get Sensor Info Returned`);
+    dir(sensor);
 
-          // Look through all the sensors to make sure that they aren't mutually exclusive.
-          if (sensor.enabled) {
-            this.measurementPeriod = sensor.specs.measurementInfo.typicalPeriod;
-            this.sensors.forEach((sensor2) => {
-              if (sensor.number !== sensor2.number) {
-                if (sensor2.enabled) {
-                  const mask = 1 << sensor2.number;
-                  if ((mask & sensor.specs.mutalExclusionMask) === mask) {
-                    sensor2.enabled = false;
-                  } else if (
-                    sensor2.specs.measurementInfo.typicalPeriod >
-                    this.measurementPeriod
-                  ) {
-                    this.measurementPeriod =
-                      sensor2.specs.measurementInfo.typicalPeriod;
-                  }
-                }
+    this.sensors.push(sensor);
+    sensor.on("state-changed", () => {
+      log(`Sensor Restart: ${sensor.number}`);
+
+      // Look through all the sensors to make sure that they aren't mutually exclusive.
+      if (sensor.enabled) {
+        this.measurementPeriod = sensor.specs.measurementInfo.typicalPeriod;
+        this.sensors.forEach((sensor2) => {
+          if (sensor.number !== sensor2.number) {
+            if (sensor2.enabled) {
+              const mask = 1 << sensor2.number;
+              if ((mask & sensor.specs.mutalExclusionMask) === mask) {
+                sensor2.enabled = false;
+              } else if (
+                sensor2.specs.measurementInfo.typicalPeriod >
+                this.measurementPeriod
+              ) {
+                this.measurementPeriod =
+                  sensor2.specs.measurementInfo.typicalPeriod;
               }
-            });
+            }
           }
-
-          this.#restartMeasurements();
         });
       }
+      this.#restartMeasurements();
     });
   }
 

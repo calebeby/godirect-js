@@ -1,4 +1,4 @@
-const verboseLogging = true;
+const verboseLogging = false;
 
 type EventType = string | symbol;
 
