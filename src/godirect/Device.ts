@@ -1,17 +1,16 @@
 /* eslint-disable no-bitwise */
 import { commands, measurementType, responseType } from "./constants.js";
+import { MeasurementInfo, Sensor, SensorSpecs } from "./Sensor.js";
 import {
-  bufferToHex,
   appendBuffer,
-  log,
+  bufferToHex,
   dir,
   EventEmitter,
+  log,
   nonZero,
 } from "./utils.js";
-
-import { Sensor, MeasurementInfo, SensorSpecs } from "./Sensor.js";
-import WebUsbDeviceAdapter from "./WebUsbDeviceAdapter.js";
-import WebBluetoothDeviceAdapter from "./WebBluetoothDeviceAdapter.js";
+import type WebBluetoothDeviceAdapter from "./WebBluetoothDeviceAdapter.js";
+import type WebUsbDeviceAdapter from "./WebUsbDeviceAdapter.js";
 
 export default class Device extends EventEmitter<{
   "measurements-started": void;
@@ -96,9 +95,7 @@ export default class Device extends EventEmitter<{
 
     this.#onOpened();
 
-    if (autoStart) {
-      this.start();
-    }
+    if (autoStart) await this.start();
   }
 
   /**
@@ -137,7 +134,7 @@ export default class Device extends EventEmitter<{
    * then enable the default sensors. If a period is specified then use it,
    * if not use the fastest typical from the enabled sensors.
    */
-  start(period: number | null = null) {
+  async start(period: number | null = null) {
     let enabledSensors = this.sensors.filter((s) => s.enabled);
 
     // And make sure at least one sensor is enabled.
@@ -147,22 +144,24 @@ export default class Device extends EventEmitter<{
     }
 
     // Clear out the last collection's values.
-    enabledSensors.forEach((s) => s.clear());
+    enabledSensors.forEach((s) => {
+      s.clear();
+    });
 
     // If the user passed in a period then use it
     if (period) {
       this.measurementPeriod = period;
     }
 
-    this.startMeasurements();
+    await this.startMeasurements();
   }
 
   /**
    * Stop measurements on the device.
    * @name stop
    */
-  stop() {
-    this.stopMeasurements();
+  async stop() {
+    await this.stopMeasurements();
   }
 
   /** Based on a number return the sensor. */
@@ -185,7 +184,7 @@ export default class Device extends EventEmitter<{
           if (this.writeQueue && this.writeQueue.length > 0) {
             const q = this.writeQueue[0];
             if (!q.written) {
-              this.#writeToDevice(q.buffer);
+              this.#writeToDevice(q.buffer).catch(() => {});
               q.written = true;
             }
           }
@@ -552,7 +551,7 @@ export default class Device extends EventEmitter<{
     dir(sensor);
 
     this.sensors.push(sensor);
-    sensor.on("state-changed", () => {
+    sensor.on("state-changed", async () => {
       log(`Sensor Restart: ${sensor.number}`);
 
       // Look through all the sensors to make sure that they aren't mutually exclusive.
@@ -575,7 +574,7 @@ export default class Device extends EventEmitter<{
           }
         });
       }
-      this.#restartMeasurements();
+      await this.#restartMeasurements();
     });
   }
 

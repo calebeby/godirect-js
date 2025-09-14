@@ -1,6 +1,7 @@
 import "./style.css";
-import goDirect from "./godirect/godirect";
-import { bufferToHex } from "./godirect/utils";
+
+import goDirect from "./godirect/godirect.ts";
+import { bufferToHex } from "./godirect/utils.ts";
 
 if (!navigator.hid) {
   document.body.innerHTML = `<h1>No webusb support; try Chrome/Edge</h1>`;

@@ -75,16 +75,18 @@ export class EventEmitter<Events extends Record<EventType, unknown>> {
     if (handlers) {
       (handlers as EventHandlerList<Events[keyof Events]>)
         .slice()
-        .map((handler) => {
+        .forEach((handler) => {
           handler(event!);
         });
     }
 
     handlers = this.all.get("*");
     if (handlers) {
-      (handlers as WildCardEventHandlerList<Events>).slice().map((handler) => {
-        handler(type, event!);
-      });
+      (handlers as WildCardEventHandlerList<Events>)
+        .slice()
+        .forEach((handler) => {
+          handler(type, event!);
+        });
     }
   }
 }

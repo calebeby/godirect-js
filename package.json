@@ -3,25 +3,31 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "files": [
+    "dist/"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "rm -rf dist && tsup src/godirect/godirect.ts --format esm,cjs --dts",
     "type:watch": "tsc --watch",
     "preview": "vite preview",
-    "knip": "knip"
+    "knip": "knip",
+    "lint": "biome check --write",
+    "lint:check": "biome check"
   },
   "exports": {
-    "require":{
-      "types":"./dist/godirect.d.cts",
+    "require": {
+      "types": "./dist/godirect.d.cts",
       "default": "./dist/godirect.cjs"
     },
-    "default":{
-      "types":"./dist/godirect.d.ts",
+    "default": {
+      "types": "./dist/godirect.d.ts",
       "default": "./dist/godirect.js"
     }
   },
   "types": "./dist/godirect.d.ts",
   "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
     "@types/node": "^24.0.10",
     "knip": "^5.61.3",
     "tsup": "^8.5.0",
